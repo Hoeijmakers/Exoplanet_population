@@ -93,4 +93,4 @@ def plot_population():
                     fig.canvas.draw_idle()
     fig.canvas.mpl_connect("motion_notify_event", newhover)
     plt.show()
-plot_hot_neptunes()
+plot_population()
