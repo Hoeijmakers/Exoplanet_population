@@ -1,2 +1,2 @@
 # Exoplanet_population
-Plotting the exoplanet population with selection criteria
+Plotting the exoplanet population with selection criteria, using Astroquery.
