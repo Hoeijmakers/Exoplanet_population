@@ -13,10 +13,10 @@ def plot_population():
 
 
     #First establish the rules that a planet must satisfy in order to be printed / highlighted.
-    teq_min = 1000 * u.K
-    teq_max = 1300 * u.K
-    rad_min = 2 * u.R_earth
-    rad_max = 4 * u.R_earth
+    teq_min = 2000 * u.K
+    teq_max = 2500 * u.K
+    rad_min = 10 * u.R_earth
+    rad_max = 18 * u.R_earth
     gaia_mag_limit = 13
 
     #Read the archive and compute the equilibrium temperature.
@@ -53,9 +53,9 @@ def plot_population():
     fig,ax = plt.subplots()
     sc = plt.scatter(systems_to_plot['teq'],systems_to_plot['pl_radj'].to(u.R_earth),c='gray',s=20,alpha=0.5)
     sct=plt.scatter(targets['teq'],targets['pl_radj'].to(u.R_earth),c='orange',s=20,alpha=0.5)
-    ax.set_ylabel('Planet radius')
-    ax.set_xlabel('Equilibrium temperature')
-    ax.set_title('Temperature vs radius plot')
+    ax.set_ylabel('Radius ($R_E$)')
+    ax.set_xlabel('Equilibrium temperature (K)')
+    ax.set_title('Temperature versus Radius')
     ax.set_xlim(ax.get_xlim()[::-1])
 
 
