@@ -13,11 +13,13 @@ def plot_population():
 
 
     #First establish the rules that a planet must satisfy in order to be printed / highlighted.
-    teq_min = 2000 * u.K
-    teq_max = 2500 * u.K
-    rad_min = 10 * u.R_earth
-    rad_max = 18 * u.R_earth
+    teq_min = 1000 * u.K
+    teq_max = 1300 * u.K
+    rad_min = 2 * u.R_earth
+    rad_max = 4 * u.R_earth
     gaia_mag_limit = 13
+    P_min = 0.0 * u.day
+    P_max = 1.0 * u.day
 
     #Read the archive and compute the equilibrium temperature.
     #TO DO: SOME PLANETS FALL OUT BECAUSE THEY DONT HAVE A STELLAR EFFECTIVE TEMPERATURE AND/OR STELLAR RADIUS.
@@ -28,13 +30,16 @@ def plot_population():
     rp = transiting['pl_radj']#Short-hand for planet radii.
     equilibrium_temperature = (transiting['st_teff'] * np.sqrt(transiting['st_rad'] / 2 / transiting['pl_orbsmax'])).decompose()#Compute T_eq.
     g = transiting['gaia_gmag'].quantity#Short-hand for the Gaia magnitude.
+    P = transiting['pl_orbper']
     transiting['teq'] = equilibrium_temperature
 
     #Create boolean arrays for selecting the rows in the table, based on the above rules.
     temp_constraints = (equilibrium_temperature < teq_max) & (equilibrium_temperature > teq_min)
     rad_constraints = (rp < rad_max) & (rp > rad_min)
     gmag_constaints = (g < gaia_mag_limit)
+    P_constraints = (P > P_min) & (P < P_max)
     targets = transiting[temp_constraints & rad_constraints & gmag_constaints]#These are the highlighted planets.
+    targets = transiting[P_constraints]
     targets.sort('gaia_gmag')
     targets['r_earth'] = targets['pl_radj'].to(u.R_earth)
     targets[['pl_name', 'gaia_gmag', 'teq', 'r_earth', 'pl_orbper','st_rad','st_teff','st_spstr']].pprint(max_lines=1000)
