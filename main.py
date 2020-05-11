@@ -2,12 +2,11 @@
 # """This plots the exoplanet population to create a plot of selectable planets
 # in the exoplanet population, using the interactive Bokeh server.
 #
-# It is based off a Gist by Brett Morris (github bmorris3), pulling it from
-# Notebook form and adding an interactive plot.
 #
 # Jens Hoeijmakers, 05-05-2020
 #
-# This is grafted onto https://github.com/bokeh/bokeh/blob/master/examples/app/movies/main.py"""
+# This used the IMDB explorer example (https://github.com/bokeh/bokeh/blob/master/examples/app/movies/main.py),
+# and a Gist by Brett Morris (github bmorris3) as a starting points."""
 import numpy as np
 import matplotlib.pyplot as plt
 import astropy.units as u
@@ -50,6 +49,8 @@ def prep_table():
     return(transiting)
 
 DF = prep_table()
+# print(DF.colnames)
+# sys.exit()
 
 axis_map = {
     "Planet mass": "planetmass",
@@ -111,6 +112,48 @@ y_axis = Select(title="Y Axis", options=sorted(axis_map.keys()), value=list(axis
 # Create Column Data Source that will be used by the plot.
 # We create 2 tables. One that contains *all* planets; one that contains only the selected planets.
 datatable = ColumnDataSource(data=dict(x=[],y=[],P=[],Rp=[], Mp=[], T_eff=[], Name=[], Year=[], T_eq=[], Gmag=[],color=[],alpha=[]))
+
+
+axis_map = {
+    "Planet mass": "planetmass",
+    "Planet radius": "planetradius",
+    "Orbital period": "pl_orbper",
+    "Equilibrium temperature": "teq",
+    "Stellar Effective Temperature": "st_teff",
+    "Gaia magnitude":"gaia_gmag",
+    "Year of discovery": "pl_disc",
+}
+
+
+TOOLTIPS=[("Name","@Name"),("Mass", "@Mp"),("Radius", "@Rp"),("P", "@P")]
+#Note that the format of the tooltip can be completely customised using HTML code; see: https://docs.bokeh.org/en/latest/docs/user_guide/tools.html
+#E.g.:
+# TOOLTIPS = """
+#     <div>
+#         <div>
+#             <img
+#                 src="@imgs" height="42" alt="@imgs" width="42"
+#                 style="float: left; margin: 0px 15px 15px 0px;"
+#                 border="2"
+#             ></img>
+#         </div>
+#         <div>
+#             <span style="font-size: 17px; font-weight: bold;">@desc</span>
+#             <span style="font-size: 15px; color: #966;">[$index]</span>
+#         </div>
+#         <div>
+#             <span>@fonts{safe}</span>
+#         </div>
+#         <div>
+#             <span style="font-size: 15px;">Location</span>
+#             <span style="font-size: 10px; color: #696;">($x, $y)</span>
+#         </div>
+#     </div>
+# """
+
+
+
+
 # selected_table=copy.deepcopy(datatable)
 # source.data = dict(
 #     x=df[x_name],
@@ -123,18 +166,15 @@ datatable = ColumnDataSource(data=dict(x=[],y=[],P=[],Rp=[], Mp=[], T_eff=[], Na
 # )
 
 #Create 4 figures with different combinations of xlog and ylog.
-p1 = figure(plot_height=200, plot_width=200, title="", toolbar_location=None, sizing_mode="scale_height",x_axis_type="linear",y_axis_type='linear',visible=False)
-p2 = figure(plot_height=200, plot_width=200, title="", toolbar_location=None, sizing_mode="scale_height",x_axis_type="log",y_axis_type='linear',visible=False)
-p3 = figure(plot_height=200, plot_width=200, title="", toolbar_location=None, sizing_mode="scale_height",x_axis_type="linear",y_axis_type='log',visible=False)
-p4 = figure(plot_height=200, plot_width=200, title="", toolbar_location=None, sizing_mode="scale_height",x_axis_type="log",y_axis_type='log',visible=False)
+p1 = figure(plot_height=200, plot_width=200, title="", toolbar_location=None, sizing_mode="scale_height",tooltips=TOOLTIPS,x_axis_type="linear",y_axis_type='linear',visible=False)
+p2 = figure(plot_height=200, plot_width=200, title="", toolbar_location=None, sizing_mode="scale_height",tooltips=TOOLTIPS,x_axis_type="log",y_axis_type='linear',visible=False)
+p3 = figure(plot_height=200, plot_width=200, title="", toolbar_location=None, sizing_mode="scale_height",tooltips=TOOLTIPS,x_axis_type="linear",y_axis_type='log',visible=False)
+p4 = figure(plot_height=200, plot_width=200, title="", toolbar_location=None, sizing_mode="scale_height",tooltips=TOOLTIPS,x_axis_type="log",y_axis_type='log',visible=False)
 p1.circle(x="x", y="y", source=datatable, size=7, color="color", line_color=None, fill_alpha="alpha")
 p2.circle(x="x", y="y", source=datatable, size=7, color="color", line_color=None, fill_alpha="alpha")
 p3.circle(x="x", y="y", source=datatable, size=7, color="color", line_color=None, fill_alpha="alpha")
 p4.circle(x="x", y="y", source=datatable, size=7, color="color", line_color=None, fill_alpha="alpha")
 #All of them are set to invisible.
-
-
-
 
 
 #CONTINUE HERE
@@ -166,7 +206,8 @@ def update():
         p.yaxis.axis_label = y_axis.value+' '+unit_map[y_axis.value]
     x_name = axis_map[x_axis.value]
     y_name = axis_map[y_axis.value]
-    datatable.data = dict(x=DF[x_name],y=DF[y_name],P=DF["pl_orbper"],Rp=DF["pl_radj"],T_eq=DF["teq"],Gmag=DF["gaia_gmag"],color=DF["colour"],alpha=DF["alpha"])
+    #This is where the actual conversion between the exoplanet input table and the dataframe read by Bokeh is done.
+    datatable.data = dict(x=DF[x_name],y=DF[y_name],P=DF["pl_orbper"],Mp=DF["planetmass"],Rp=DF["planetradius"],T_eq=DF["teq"],Gmag=DF["gaia_gmag"],color=DF["colour"],alpha=DF["alpha"],Name=DF["pl_name"])
     # print(units.active)
 
 
