@@ -15,9 +15,11 @@ from astroquery.nasa_exoplanet_archive import NasaExoplanetArchive
 import copy
 import sys
 import numpy as np
-from bokeh.io import curdoc
+from bokeh.io import curdoc, show, reset_output
 from bokeh.layouts import column, layout
 from bokeh.models import ColumnDataSource, Div, Select, Slider, TextInput,RangeSlider,RadioGroup,CheckboxGroup
+from bokeh.models.formatters import FuncTickFormatter
+from bokeh.models.callbacks import CustomJS
 from bokeh.plotting import figure
 from os.path import dirname, join
 from datetime import date
@@ -76,7 +78,8 @@ lim_per  = (0,math.ceil(np.nanmax(DF['pl_orbper'].to('d').value)/1000.0)*1000.0)
 
 mass = RangeSlider(start=lim_mass[0], end=lim_mass[1], value=lim_mass, step=.1, title=list(axis_map.keys())[0])
 rad  = RangeSlider(start=lim_rad[0], end=lim_rad[1], value=lim_rad, step=.1, title=list(axis_map.keys())[1])
-per  = RangeSlider(start=lim_per[0], end=lim_per[1], value=lim_per, step=.1, title=list(axis_map.keys())[2])
+# per  = RangeSlider(start=lim_per[0], end=lim_per[1], value=lim_per, step=.1, title=list(axis_map.keys())[2])
+per  = RangeSlider(start=-1.5,end=4, value=[-1.5,4], step=.01, title=list(axis_map.keys())[2],format=FuncTickFormatter(code="return (10**tick).toFixed(2)"))
 teq  = RangeSlider(start=lim_teq[0], end=lim_teq[1], value=lim_teq, step=100, title=list(axis_map.keys())[3])
 teff = RangeSlider(start=lim_teff[0], end=lim_teff[1], value=lim_teff, step=1000, title=list(axis_map.keys())[4])
 mag  = RangeSlider(start=lim_mag[0], end=lim_mag[1], value=lim_mag, step=.1, title=list(axis_map.keys())[5])
@@ -109,9 +112,17 @@ datatable = ColumnDataSource(data=dict(x=[],y=[],P=[],Rp=[], Mp=[], T_eff=[], Na
 #     alpha=df["alpha"],
 # )
 
+#Create 4 figures with different combinations of xlog and ylog.
+p1 = figure(plot_height=200, plot_width=200, title="", toolbar_location=None, sizing_mode="scale_height",x_axis_type="linear",y_axis_type='linear',visible=False)
+p2 = figure(plot_height=200, plot_width=200, title="", toolbar_location=None, sizing_mode="scale_height",x_axis_type="log",y_axis_type='linear',visible=False)
+p3 = figure(plot_height=200, plot_width=200, title="", toolbar_location=None, sizing_mode="scale_height",x_axis_type="linear",y_axis_type='log',visible=False)
+p4 = figure(plot_height=200, plot_width=200, title="", toolbar_location=None, sizing_mode="scale_height",x_axis_type="log",y_axis_type='log',visible=False)
+p1.circle(x="x", y="y", source=datatable, size=7, color="color", line_color=None, fill_alpha="alpha")
+p2.circle(x="x", y="y", source=datatable, size=7, color="color", line_color=None, fill_alpha="alpha")
+p3.circle(x="x", y="y", source=datatable, size=7, color="color", line_color=None, fill_alpha="alpha")
+p4.circle(x="x", y="y", source=datatable, size=7, color="color", line_color=None, fill_alpha="alpha")
+#All of them are set to invisible.
 
-p = figure(plot_height=200, plot_width=200, title="", toolbar_location=None, sizing_mode="scale_height",x_axis_type="log")
-p.circle(x="x", y="y", source=datatable, size=7, color="color", line_color=None, fill_alpha="alpha")
 
 
 
@@ -137,27 +148,70 @@ p.circle(x="x", y="y", source=datatable, size=7, color="color", line_color=None,
 #     return selected
 
 
+
 def update():
-    #Put all the selected planets into the data structure.
-    # df = select_movies()
+    """This updates the axis labels and circles after changing the axes or selection sliders."""
+    for p in [p1,p2,p3,p4]:
+        p.xaxis.axis_label = x_axis.value
+        p.yaxis.axis_label = y_axis.value
     x_name = axis_map[x_axis.value]
     y_name = axis_map[y_axis.value]
-    p.xaxis.axis_label = x_axis.value
-    p.yaxis.axis_label = y_axis.value
-    # p.title.text = "%d movies selected" % len(df)
     datatable.data = dict(x=DF[x_name],y=DF[y_name],P=DF["pl_orbper"],Rp=DF["pl_radj"],T_eq=DF["teq"],Gmag=DF["gaia_gmag"],color=DF["colour"],alpha=DF["alpha"])
     # print(units.active)
+
+
+def change_logscale():
+    """This determines the value of the x-log, y-log buttons, and
+    changes the scale of the x and y axes accordingly.
+
+    Well, not 'change', but rather make visible the plot with the correct
+    combination of xlog and ylog. A bit cumbersome but so be it."""
+    for p in [p1,p2,p3,p4]:
+        p.visible=False#Set all figures to invisible.
+    #And then make only one visible again:
     # print(axis_log.active)
+    if len(axis_log.active) == 0:
+        # print('Making p1 active')
+        p1.visible=True
+    elif len(axis_log.active) ==2:
+        # print('Making p4 active')
+        p4.visible=True
+    elif 0 in axis_log.active:
+        # print('Making p2 active')
+        p2.visible=True
+    else:
+        # print('Making p3 active')
+        p3.visible=True
 
-controls = [mass,rad,per,teq,teff,mag,year,x_axis,y_axis]
-for control in controls:
-    control.on_change('value', lambda attr, old, new: update())
-
-inputs = column(*controls, width=320, height=700)
-inputs.sizing_mode = "fixed"
-l = layout([[desc],[inputs, p]], sizing_mode="scale_both")
 
 
+
+
+
+#Finally, collect all the widgets and define when to call back.
+selection = [mass,rad,per,teq,teff,mag,year]#Left column.
+axes = [x_axis,y_axis]
+axis_options = [units,axis_log]
+
+
+for param in selection+axes:#If the value of any of the sliders or the axes changes, we update.
+    param.on_change('value', lambda attr, old, new: update())
+# for ax in axes:
+#     ax.on_change('value', lambda attr, old, new: update())
+# for opt in axis_options:
+#     opt.on_change('active', lambda attr, old, new: update())
+axis_log.on_change('active', lambda attr, old, new: change_logscale())
+
+
+rightcol = axes+axis_options#left column.
+inputs1 = column(*selection, width=320, height=650)
+inputs1.sizing_mode = "fixed"
+inputs2 = column(*rightcol, width=280, height=650)
+inputs2.sizing_mode = "fixed"
+
+l = layout([[desc],[inputs1,p1,p2,p3,p4,inputs2]], sizing_mode="scale_both")
+
+change_logscale()
 update()  # initial load of the data
 curdoc().add_root(l)
 curdoc().title = "Planets"
