@@ -8,7 +8,7 @@
 # This used the IMDB explorer example (https://github.com/bokeh/bokeh/blob/master/examples/app/movies/main.py),
 # and a Gist by Brett Morris (github bmorris3) as a starting points."""
 import numpy as np
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import astropy.units as u
 from astroquery.nasa_exoplanet_archive import NasaExoplanetArchive
 import copy
