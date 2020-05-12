@@ -1,14 +1,20 @@
-# This is the file that is executed by the bokeh server.
-# """This plots the exoplanet population to create a plot of selectable planets
-# in the exoplanet population, using the interactive Bokeh server.
+# This is the file that is executed by the Bokeh server when running the Bokeh serve command.
+# The purpose of this script is to plot the exoplanet population and to interactively select
+# planets from the population based on user-provided criteria.
+
+# Written by Jens Hoeijmakers, 12-05-2020, Bern & Geneva, Switzerland; Lund, Sweden.
 #
 #
-# Jens Hoeijmakers, 05-05-2020
-#
-# This used the IMDB explorer example (https://github.com/bokeh/bokeh/blob/master/examples/app/movies/main.py),
-# and a Gist by Brett Morris (github bmorris3) as a starting points."""
+# Credits:
+# This used the Bokeh IMDB explorer example (https://github.com/bokeh/bokeh/blob/master/examples/app/movies/main.py)
+# to teach me how to set up a Bokeh app, and a Gist by Brett Morris (github bmorris3) to get started with the Nasa Exoplanet Archive,
+# and parameter selection using Astropy tables."""
+
+
+
+
+
 import numpy as np
-# import matplotlib.pyplot as plt
 import astropy.units as u
 from astroquery.nasa_exoplanet_archive import NasaExoplanetArchive
 import copy
@@ -27,7 +33,7 @@ import math
 
 def prep_table():
     """This is a wrapper for reading and augmenting the Exoplanet data table to be suitable for interaction with bokeh.
-    It computes the equilibrium temperature, converts masses and radii."""
+    It computes the equilibrium temperature, converts masses and radii. Thanks Brett!"""
 
 #TO DO: SOME PLANETS FALL OUT BECAUSE THEY DONT HAVE A STELLAR EFFECTIVE TEMPERATURE AND/OR STELLAR RADIUS.
 #HOWEVER THESE CAN BE APPROXIMATED FROM THE SPECTRAL TYPE. FOR EACH MISSING VALUE, I NEED TO LOOK UP WHAT A STAR WITH
