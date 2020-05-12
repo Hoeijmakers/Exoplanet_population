@@ -15,7 +15,7 @@ import copy
 import sys
 import numpy as np
 from bokeh.io import curdoc, show, reset_output
-from bokeh.layouts import column, layout
+from bokeh.layouts import column, layout, row
 from bokeh.models import ColumnDataSource, Div, Select, Slider, TextInput,RangeSlider,RadioGroup,CheckboxGroup
 from bokeh.models.formatters import FuncTickFormatter
 from bokeh.models.callbacks import CustomJS
@@ -54,37 +54,45 @@ def prep_table():
 
 
 DF = prep_table()
-# print(DF.colnames)
+print(DF.colnames)
 # sys.exit()
 
 
 # Create Column Data Source that will be used by the plot.
 # We create 2 tables. One that contains *all* planets; one that contains only the selected planets.
-datatable = ColumnDataSource(data=dict(x=[],y=[],P=[],Rp=[], Mp=[], T_eff=[], Name=[], Year=[], T_eq=[], Gmag=[],color=[],alpha=[]))
-seltable = ColumnDataSource(data=dict(x=[],y=[],P=[],Rp=[], Mp=[], T_eff=[], Name=[], Year=[], T_eq=[], Gmag=[],selcolor=[],alpha=[]))
+datatable = ColumnDataSource(data=dict(x=[],y=[],P=[],Rp=[], Mp=[], T_eff=[], Name=[], Year=[], T_eq=[], Gmag=[],Jmag=[],color=[],alpha=[],rho=[],ecc=[],FeH=[]))
+seltable = ColumnDataSource(data=dict(x=[],y=[],P=[],Rp=[], Mp=[], T_eff=[], Name=[], Year=[], T_eq=[], Gmag=[],Jmag=[],selcolor=[],alpha=[],rho=[],ecc=[],FeH=[]))
 
 axis_map = {
     "Planet mass": "planetmass",
     "Planet radius": "planetradius",
     "Orbital period": "pl_orbper",
+    "Eccentricity":"pl_orbeccen",
     "Equilibrium temperature": "teq",
     "Stellar Effective Temperature": "st_teff",
+    "Density": "pl_dens",
     "Gaia magnitude":"gaia_gmag",
+    "2MASS J magnitude":"st_j",
+    "Metallicity [Fe/H]":"st_metfe",
     "Year of discovery": "pl_disc",
 }
 unit_map = {
     "Planet mass": "(Mj)",
     "Planet radius": "(Rj)",
     "Orbital period": "(d)",
+    "Eccentricity":"",
     "Equilibrium temperature": "(K)",
     "Stellar Effective Temperature": "(K)",
+    "Density": '(g/cm3)',
     "Gaia magnitude":"",
+    "2MASS J magnitude":"",
+    "Metallicity [Fe/H]":"(dex)",
     "Year of discovery": "",
 }
 
 
 
-TOOLTIPS=[("Name","@Name"),("Mass", "@Mp"),("Radius", "@Rp"),("P", "@P")]
+TOOLTIPS=[("Name","@Name"),("Mass", "@Mp"),("Radius", "@Rp"),("P", "@P d"),("Gmag/Jmag", "@Gmag/@Jmag"),("Teq", "@T_eq K")]
 #Note that the format of the tooltip can be completely customised using HTML code; see: https://docs.bokeh.org/en/latest/docs/user_guide/tools.html
 #E.g.:
 # TOOLTIPS = """
@@ -115,11 +123,13 @@ TOOLTIPS=[("Name","@Name"),("Mass", "@Mp"),("Radius", "@Rp"),("P", "@P")]
 lim_mass = (0,math.ceil(np.nanmax(DF['planetmass'])))
 lim_year = (np.nanmin(DF["pl_disc"]),int(date.today().year))#Limit year between first discovery and now.
 lim_mag  = (math.floor(np.nanmin(DF["gaia_gmag"])),math.ceil(np.max(DF["gaia_gmag"])))
+lim_jmag = (math.floor(np.nanmin(DF["st_j"])),math.ceil(np.max(DF["st_j"])))
 # lim_teq  = (0,math.ceil(np.nanmax(DF['teq'].to('K').value)/1000.0)*1000.0)#Will need to deal with infinites here.
-lim_teq = (0,6000)
+lim_teq = (0,5000)
 lim_rad  = (0,math.ceil(np.nanmax(DF['planetradius'].to('jupiterRad').value)))
 lim_teff = (0,math.ceil(np.nanmax(DF['st_teff'].to('K').value)/1000.0)*1000.0)
 lim_per  = (0,math.ceil(np.nanmax(DF['pl_orbper'].to('d').value)/1000.0)*1000.0)
+lim_ecc = (0,1)
 
 
 
@@ -197,10 +207,12 @@ mass = RangeSlider(start=0, end=20, value=(0,20),value_throttled=(0,20), step=1,
 rad  = RangeSlider(start=0, end=16, value=(0,16),value_throttled=(0,16), step=1, title=list(axis_map.keys())[1],format=FuncTickFormatter(code=radius_ticker))
 # per  = RangeSlider(start=lim_per[0], end=lim_per[1], value=lim_per, step=.1, title=list(axis_map.keys())[2])
 per  = RangeSlider(start=-1.5,end=4, value=[-1.5,4],value_throttled=[-1.5,4], step=.01, title=list(axis_map.keys())[2],format=FuncTickFormatter(code="return (10**tick).toFixed(2)"))
-teq  = RangeSlider(start=lim_teq[0], end=lim_teq[1], value=lim_teq,value_throttled=lim_teq, step=100, title=list(axis_map.keys())[3])
-teff = RangeSlider(start=lim_teff[0], end=lim_teff[1], value=lim_teff,value_throttled=lim_teff, step=1000, title=list(axis_map.keys())[4])
-mag  = RangeSlider(start=lim_mag[0], end=lim_mag[1], value=lim_mag,value_throttled=lim_mag, step=.1, title=list(axis_map.keys())[5])
-year = RangeSlider(start=lim_year[0], end=lim_year[1], value=lim_year,value_throttled=lim_year, step=1, title=list(axis_map.keys())[6])
+ecc  = RangeSlider(start=0,end=1,value=lim_ecc,value_throttled=lim_ecc,step=0.05,title=list(axis_map.keys())[3])
+teq  = RangeSlider(start=lim_teq[0], end=lim_teq[1], value=lim_teq,value_throttled=lim_teq, step=100, title=list(axis_map.keys())[4])
+teff = RangeSlider(start=lim_teff[0], end=lim_teff[1], value=lim_teff,value_throttled=lim_teff, step=1000, title=list(axis_map.keys())[5])
+mag  = RangeSlider(start=lim_mag[0], end=lim_mag[1], value=lim_mag,value_throttled=lim_mag, step=.1, title=list(axis_map.keys())[7])
+Jmag = RangeSlider(start=lim_jmag[0], end=lim_jmag[1], value=lim_jmag,value_throttled=lim_jmag, step=.1, title=list(axis_map.keys())[8])
+# year = RangeSlider(start=lim_year[0], end=lim_year[1], value=lim_year,value_throttled=lim_year, step=1, title=list(axis_map.keys())[8])
 units = RadioGroup(labels=["Jupiter","Earth"], active=0)
 axis_log = CheckboxGroup(labels=["log(x)", "log(y)"], active=[0])
 # Type  =  Select(title="Type", value="All",options=['All','TOI','Transiting','Non-transiting (RV)','Directly imaged'])
@@ -212,10 +224,10 @@ y_axis = Select(title="Y Axis", options=sorted(axis_map.keys()), value=list(axis
 
 
 #Create 4 figures with different combinations of xlog and ylog.
-p1 = figure(plot_height=200, plot_width=200, title="", toolbar_location=None, sizing_mode="scale_height",tooltips=TOOLTIPS,x_axis_type="linear",y_axis_type='linear',visible=False)
-p2 = figure(plot_height=200, plot_width=200, title="", toolbar_location=None, sizing_mode="scale_height",tooltips=TOOLTIPS,x_axis_type="log",y_axis_type='linear',visible=False)
-p3 = figure(plot_height=200, plot_width=200, title="", toolbar_location=None, sizing_mode="scale_height",tooltips=TOOLTIPS,x_axis_type="linear",y_axis_type='log',visible=False)
-p4 = figure(plot_height=200, plot_width=200, title="", toolbar_location=None, sizing_mode="scale_height",tooltips=TOOLTIPS,x_axis_type="log",y_axis_type='log',visible=False)
+p1 = figure(plot_height=200, plot_width=200, title="", toolbar_location="right",toolbar_sticky=False,sizing_mode="scale_height",tooltips=TOOLTIPS,x_axis_type="linear",y_axis_type='linear',visible=False)
+p2 = figure(plot_height=200, plot_width=200, title="", toolbar_location="right",toolbar_sticky=False,sizing_mode="scale_height",tooltips=TOOLTIPS,x_axis_type="log",y_axis_type='linear',visible=False)
+p3 = figure(plot_height=200, plot_width=200, title="", toolbar_location="right",toolbar_sticky=False,sizing_mode="scale_height",tooltips=TOOLTIPS,x_axis_type="linear",y_axis_type='log',visible=False)
+p4 = figure(plot_height=200, plot_width=200, title="", toolbar_location="right",toolbar_sticky=False,sizing_mode="scale_height",tooltips=TOOLTIPS,x_axis_type="log",y_axis_type='log',visible=False)
 p1.circle(x="x", y="y", source=datatable, size=7, color="color", line_color=None, fill_alpha="alpha")
 p2.circle(x="x", y="y", source=datatable, size=7, color="color", line_color=None, fill_alpha="alpha")
 p3.circle(x="x", y="y", source=datatable, size=7, color="color", line_color=None, fill_alpha="alpha")
@@ -237,7 +249,7 @@ def update():
     x_name = axis_map[x_axis.value]
     y_name = axis_map[y_axis.value]
     #This is where the actual conversion between the exoplanet input table and the dataframe read by Bokeh is done.
-    datatable.data = dict(x=DF[x_name],y=DF[y_name],P=DF["pl_orbper"],Mp=DF["planetmass"],Rp=DF["planetradius"],T_eq=DF["teq"],Gmag=DF["gaia_gmag"],color=DF["colour"],alpha=DF["alpha"],Name=DF["pl_name"])#All this additional info is needed ONLY for the tooltip. Just sayin.
+    datatable.data = dict(x=DF[x_name],y=DF[y_name],P=DF["pl_orbper"],Mp=DF["planetmass"],Rp=DF["planetradius"],T_eq=np.round(DF["teq"],0),Gmag=np.round(DF["gaia_gmag"],1),Jmag=np.round(DF["st_j"],1),color=DF["colour"],alpha=DF["alpha"],Name=DF["pl_name"],rho=DF['pl_dens'],ecc=DF['pl_orbeccen'],FeH=DF["st_metfe"])#All this additional info is needed ONLY for the tooltip. Just sayin.
 
     #This fixes the horribly looking superscripts native to Bokeh, kindly adopted from jdbocarsly on issue 6031; https://github.com/bokeh/bokeh/issues/6031
     fix_substring_JS = """
@@ -342,8 +354,32 @@ def update_selection():
     radius_min = radius_tick_values[rad.value_throttled[0]]
     radius_max = radius_tick_values[rad.value_throttled[1]]
     radius_constraints = (DF["pl_radj"].value >= radius_min.to('jupiterRad')) & (DF["pl_radj"].value <= radius_max.to('jupiterRad'))
-    DFS=DF[mass_constraints & radius_constraints]
-    seltable.data = dict(x=DFS[x_name],y=DFS[y_name],P=DFS["pl_orbper"],Mp=DFS["planetmass"],Rp=DFS["planetradius"],T_eq=DFS["teq"],Gmag=DFS["gaia_gmag"],selcolor=DFS["selcolour"],alpha=DFS["alpha"],Name=DFS["pl_name"])#All this additional info is needed ONLY for the tooltip. Just sayin.
+    per_min = 10**per.value_throttled[0]
+    per_max = 10**per.value_throttled[1]
+    per_constraints = (DF[axis_map["Orbital period"]].value>=per_min) & (DF[axis_map["Orbital period"]].value<=per_max)
+    ecc_min = ecc.value_throttled[0]
+    ecc_max = ecc.value_throttled[1]
+    ecc_constraints = (DF[axis_map["Eccentricity"]]>=ecc_min) & (DF[axis_map["Eccentricity"]]<=ecc_max)
+    teq_min = teq.value_throttled[0]
+    teq_max = teq.value_throttled[1]
+    teq_constraints = (DF[axis_map["Equilibrium temperature"]].value>=teq_min) & (DF[axis_map["Equilibrium temperature"]].value<=teq_max)
+    teff_min = teff.value_throttled[0]
+    teff_max = teff.value_throttled[1]
+    teff_constraints = (DF[axis_map["Stellar Effective Temperature"]].value>=teff_min) & (DF[axis_map["Stellar Effective Temperature"]].value<=teff_max)
+    mag_min = mag.value_throttled[0]
+    mag_max = mag.value_throttled[1]
+    mag_constraints = (DF[axis_map["Gaia magnitude"]]>=mag_min) & (DF[axis_map["Gaia magnitude"]]<=mag_max)
+    Jmag_min = Jmag.value_throttled[0]
+    Jmag_max = Jmag.value_throttled[1]
+    Jmag_constraints = (DF["st_j"]>=Jmag_min) & (DF["st_j"]<=Jmag_max)
+    # year_min = year.value_throttled[0]
+    # year_max = year.value_throttled[1]
+    # year_constraints = (DF[axis_map["Year of discovery"]]>=year_min) & (DF[axis_map["Year of discovery"]]<=year_max)
+
+
+
+    DFS=DF[mass_constraints & radius_constraints & per_constraints & teq_constraints & teff_constraints & mag_constraints & ecc_constraints & Jmag_constraints]
+    seltable.data = dict(x=DFS[x_name],y=DFS[y_name],P=DFS["pl_orbper"],Mp=DFS["planetmass"],Rp=DFS["planetradius"],T_eq=np.round(DFS["teq"],0),Gmag=np.round(DFS["gaia_gmag"],1),Jmag=np.round(DFS["st_j"],1),selcolor=DFS["selcolour"],alpha=DFS["alpha"],Name=DFS["pl_name"],rho=DFS['pl_dens'],ecc=DFS['pl_orbeccen'],FeH=DFS["st_metfe"])#All this additional info is needed ONLY for the tooltip. Just sayin.
 
 
     # for i in radius_constraints:
@@ -360,7 +396,7 @@ def update_selection():
 
 
 #Finally, collect all the widgets and define when to call back.
-selection = [mass,rad,per,teq,teff,mag,year]#Left column.
+selection = [mass,rad,per,ecc,teq,teff,mag,Jmag]#Left column.
 axes = [x_axis,y_axis]
 axis_options = [units,axis_log]
 
@@ -378,10 +414,11 @@ inputs1 = column(*selection, width=320, height=650)
 inputs1.sizing_mode = "fixed"
 inputs2 = column(*rightcol, width=280, height=650)
 inputs2.sizing_mode = "fixed"
-
+# inputs2 = row(*rightcol, width=280, height=650)
+# inputs2.sizing_mode = "fixed"
 
 desc = Div(text=open(join(dirname(__file__), "description.html")).read(), sizing_mode="stretch_width")
-l = layout([[desc],[inputs1,p1,p2,p3,p4,inputs2]], sizing_mode="scale_both")
+l = layout([[desc],[inputs1,p1,p2,p3,p4,inputs2],[Div(text='<i> by Jens Hoeijmakers (May 2020)</i>',sizing_mode="stretch_width")]], sizing_mode="scale_both")
 
 change_logscale()
 update()  # initial load of the data
